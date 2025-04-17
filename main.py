@@ -1,9 +1,10 @@
 import pandas as pd
 from utils.data_utils import read_excel_file,split_dt_data,save_dataframe,split_fd_data,sort_ascending,split_volume_and_pack_size,normalize_volume_column
 from utils.missing import miss_val_column, miss_val_percentage
-from utils.duplicates import exact_duplicate_rows, num_exact_duplicates,find_duplicates_within_df,drop_exact_within_df,find_duplicates_across_df
+from utils.duplicates import exact_duplicate_rows, num_exact_duplicates,find_duplicates_within_df,drop_exact_within_df,find_duplicates_across_df,find_partial_duplicates_within,find_partial_duplicates_by_combination,find_partial_duplicates_across
 from utils.drop import drop_unnecessary_columns
 from utils.standardize import standardize_text,remove_spaces,clean_pack_size_column,fill_value,convert_pack_size_to_number,convert_column_to_str
+from rapidfuzz import fuzz
 
 #Read Files
 fd_df=read_excel_file('./datasets/Only_FD_Data 3.xlsx')
@@ -149,5 +150,44 @@ print('\n')
 print(dt_exact_dropped.info())
 print('\n')
 
-save_dataframe(fd_exact_dropped,'/Users/vandana/Desktop/fd_exact_dropped.xlsx')
-save_dataframe(dt_exact_dropped,'/Users/vandana/Desktop/dt_exact_dropped.xlsx')
+#save_dataframe(fd_exact_dropped,'/Users/vandana/Desktop/fd_exact_dropped.xlsx')
+#save_dataframe(dt_exact_dropped,'/Users/vandana/Desktop/dt_exact_dropped.xlsx')
+
+#partial_dups_fd=find_partial_duplicates_within(fd_exact_dropped,'Product Name','Volume','Pack Size', threshold=95)
+#partial_dups_dt=find_partial_duplicates_within(dt_exact_dropped,'Product Name','Volume','Pack Size', threshold=95)
+
+'''print(partial_dups_fd)
+print('\n')
+print(partial_dups_dt)
+print('\n')'''
+
+partial_duplicates_fd=find_partial_duplicates_by_combination(fd_exact_dropped,'Product Name','Volume','Pack Size', threshold=95, scorer=fuzz.WRatio, limit=5)
+
+for key, matches in list(partial_duplicates_fd.items())[:5]:
+    print(f"{key} → {matches}")
+
+print('\n')
+
+partial_duplicates_dt=find_partial_duplicates_by_combination(dt_exact_dropped,'Product Name','Volume','Pack Size', threshold=95, scorer=fuzz.WRatio, limit=5)
+
+for key, matches in list(partial_duplicates_dt.items())[:5]:
+    print(f"{key} → {matches}")
+
+print('\n')
+
+partial_dups_across = find_partial_duplicates_across(fd_exact_dropped, dt_exact_dropped, threshold=90)
+
+output_rows = []
+
+for key, matches in partial_dups_across.items():
+    for match, score in matches:
+        output_rows.append({
+            'Product_from_fd': key,
+            'Product_from_coke': match,
+            'Score': score
+        })
+
+matches_df = pd.DataFrame(output_rows)
+
+print(matches_df)
+matches_df.to_csv('partial_duplicates_across.csv', index=False)
